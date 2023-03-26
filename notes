@@ -1,0 +1,15 @@
+---------------------------package.json----------------------------
+"scripts" "build" is not used since we are using "type":"module",
+So there is no need of babel.
+
+Hence "server" script has been changed from:
+"server": "node --trace-warnings --watch dist/index.js"
+to
+"server": "node --trace-warnings --watch src/index.js"
+
+AND
+
+"start" script has been changed from:
+"start": "concurrently \"npm run build\" \"npm run server\""
+to
+"start": "npm run server"

@@ -1,0 +1,33 @@
+{
+  "name": "graphql_basics",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "babel src -d dist --watch --copy-files",
+    "server": "node --trace-warnings --watch src/index.js",
+    "start": "npm run server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^4.11.0",
+    "graphql": "^16.6.0",
+    "graphql-scalars": "^1.20.4",
+    "graphql-yoga": "^3.7.3",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.21.0",
+    "@babel/core": "^7.21.3",
+    "@babel/preset-env": "^7.20.2",
+    "@types/express": "^4.17.17",
+    "@types/node": "^18.15.9",
+    "concurrently": "^7.6.0",
+    "prisma": "^4.11.0",
+    "typescript": "^5.0.2"
+  }
+}

@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int       @id
+  name     String
+  email    String    @unique
+  age      Int?
+  posts    Post[]
+  comments Comment[] @relation("commentOnUser")
+}
+
+model Post {
+  id        Int       @id
+  title     String
+  body      String?
+  published Boolean
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  Int
+  comments  Comment[] @relation("commentOnPost")
+}
+
+//* [id] in references of @relation is that of Post's id.
+
+//* authorId is "foreign key", i.e it does not show up in database
+//* it is the addition of "field of User" & Id i.e author + Id = authorId
+//* It references the id key in the User model.
+
+//* Foreign keys: are used to create relation between tables/models.
+
+model Comment {
+  id       Int    @id @map("comment_id")
+  text     String
+  post     Post   @relation("commentOnPost", fields: [postId], references: [id])
+  postId   Int
+  author   User   @relation("commentOnUser", fields: [authorId], references: [id])
+  authorId Int
+}
+
+//* postId and authorId are foreign keys
