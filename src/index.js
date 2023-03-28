@@ -22,7 +22,6 @@ const pubsub = createPubSub();
 // const prisma = new PrismaClient();
 
 const __filename = fileURLToPath(import.meta.url);
-console.log(".............", __filename);
 const __dirname = dirname(__filename);
 
 const schema = createSchema({

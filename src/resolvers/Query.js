@@ -9,7 +9,7 @@ const Query = {
 	}),
 	users: async (parent, args, { context, db }, info) => {
 		const users = await context.prisma.user.findMany();
-		// console.log(".................users!!!!!!!", users);
+		console.log(".................users!!!!!!!", users);
 		// const users = db.users;
 
 		if (!args.letter) return users;
@@ -22,9 +22,10 @@ const Query = {
 			select: {
 				id: true,
 				name: true,
+				email: true,
 			},
 		});
-		console.log("...............", user_with_argString);
+		console.log("user with argstring", user_with_argString);
 		// return users.filter((user) =>
 		// 	user.name.toLowerCase().includes(args.letter.toLowerCase())
 		// );

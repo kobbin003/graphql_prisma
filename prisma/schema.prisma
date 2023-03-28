@@ -11,7 +11,7 @@ datasource db {
 }
 
 model User {
-  id       Int       @id
+  id       String    @id
   name     String
   email    String    @unique
   age      Int?
@@ -25,7 +25,7 @@ model Post {
   body      String?
   published Boolean
   author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId  Int
+  authorId  String
   comments  Comment[] @relation("commentOnPost")
 }
 
@@ -43,7 +43,7 @@ model Comment {
   post     Post   @relation("commentOnPost", fields: [postId], references: [id])
   postId   Int
   author   User   @relation("commentOnUser", fields: [authorId], references: [id])
-  authorId Int
+  authorId String
 }
 
 //* postId and authorId are foreign keys

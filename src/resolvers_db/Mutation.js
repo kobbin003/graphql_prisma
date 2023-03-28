@@ -1,5 +1,5 @@
 import { v4 as uuid4 } from "uuid";
-import { GraphQLError } from "graphql";
+// import { GraphQLError } from "graphql";
 const Mutation = {
 	count: (parent, args, { pubsub }, info) => {
 		pubsub.publish("count", {
@@ -7,81 +7,65 @@ const Mutation = {
 		});
 		return 1;
 	},
-	createUser: async (parent, args, { db, context }, info) => {
+	createUser: (parent, args, ctx, info) => {
+		const { users } = ctx.db;
 		const { name, email, age } = args.data;
-		const emailTaken = await context.prisma.user.findFirst({
-			where: { email },
-		});
+		// const name = args.name;
+		// const email = args.email;
+		// const age = args.age;
+		const emailTaken = users.some((user) => user.email === email);
 		if (emailTaken) {
-			// throw new Error("this email has been taken!");
-			throw new GraphQLError("email has been taken", {
-				extensions: {
-					status: "409",
-					"status-message": "conflict",
-				},
-			});
+			throw new Error("this email has been taken!");
 		}
-
-		const user = await context.prisma.user.create({
-			data: {
-				id: uuid4(),
-				name,
-				email,
-				age,
-			},
-		});
+		const user = {
+			id: uuid4(),
+			name,
+			email,
+			age,
+		};
+		users.push(user);
 		return user;
 	},
-	updateUser: async (parent, args, { context }, info) => {
+	updateUser: (parent, args, ctx, info) => {
+		//! for updating do like updatePost and updateComment(andrew's way)
+		//! here,in updateUser(which is my way) we loop many times.
+		//! instead loop once to find the user and then mutate its property.
 		const { id, data } = args;
-		//check if email taken
-		const emailTaken = await context.prisma.user.findFirst({
-			where: { email: data.email },
-		});
-		if (emailTaken) {
-			// throw new Error("this email has been taken!");
-			throw new GraphQLError("email has been taken", {
-				extensions: {
-					status: "409",
-					"status-message": "conflict",
-				},
-			});
-		}
+		let { users, posts, comments } = ctx.db;
 		let updatedUser;
-		try {
-			updatedUser = await context.prisma.user.update({
-				where: {
-					id,
-				},
-				data,
-			});
-		} catch (error) {
-			//throws error if user with "id" is not found
-			throw new GraphQLError("user not found", { extensions: { ...error } });
-		}
+		// check if user exists
+		const userExists = users.some((user) => user.id === id);
+		if (!userExists) throw new Error("User does not exists!");
 
+		//check if the email is taken provide email has been passed as an update argument.
+		if (data.email) {
+			const emailTaken = users.some((user) => user.email === data.email);
+			if (emailTaken) throw new Error("This email is already in use!");
+		}
+		users = users.map((user) => {
+			if (user.id === id) {
+				updatedUser = { ...user, ...data };
+				return updatedUser;
+			} else return user;
+		});
 		return updatedUser;
 	},
-	deleteUser: async (parent, args, { db, context }, info) => {
-		let deletedUser;
-		try {
-			deletedUser = await context.prisma.user.delete({
-				where: {
-					id: args.userId,
-				},
-				select: {
-					id: true,
-					name: true,
-					email: true,
-				},
-			});
-		} catch (error) {
-			// it throws an error when user.delete action is prevented
-			// due to unavailability of "args.userId"
-			throw new GraphQLError("user not found", { extensions: { ...error } });
-		}
+	deleteUser: (parent, args, ctx, info) => {
+		const { users, posts, comments } = ctx.db;
+		//delete user
+		const userIndex = users.findIndex((user) => user.id === args.userId);
+		if (userIndex === -1) throw new Error("user not found!");
+		const [deletedUser] = users.splice(userIndex, 1);
 		// delete post associated with the user.
+		posts = posts.filter((post) => {
+			const match = post.author === args.userId;
+			if (match) {
+				comments = comments.filter((comment) => comments.post !== post.id);
+			}
+			return !match;
+		});
 		// delete comments associated with the post.
+		comments = comments.filter((comment) => comment.author !== args.userId);
 		return deletedUser;
 	},
 	createPost: (parent, args, ctx, info) => {
