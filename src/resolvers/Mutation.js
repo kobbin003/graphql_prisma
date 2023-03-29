@@ -84,81 +84,146 @@ const Mutation = {
 		// delete comments associated with the post.
 		return deletedUser;
 	},
-	createPost: (parent, args, ctx, info) => {
-		const { users, posts } = ctx.db;
-		const { title, body, published, author } = args.data;
+	createPost: async (
+		parent,
+		{ data },
+		{ pubsub, context: { prisma } },
+		info
+	) => {
+		// const { users, posts } = ctx.db;
+		const { title, body, published, author } = data;
 		//check if user exists
-		const userExists = users.some((user) => user.id === author);
-		if (!userExists) throw new Error("User does not exists");
-		const postWrittenByAuthor = posts.some((post) => post.title === title);
-		if (postWrittenByAuthor)
-			throw new Error("Post with the same title already exists!");
-		const post = { id: uuid4(), title, body, published, author };
+		const userExists = await prisma.user.findUnique({
+			where: {
+				id: data.author,
+			},
+		});
+
+		if (!userExists) throw new GraphQLError("User does not exists");
+		const createdPost = await prisma.post.create({
+			data: {
+				id: uuid4(),
+				title,
+				body,
+				published,
+				author: {
+					connect: {
+						id: author,
+					},
+				},
+			},
+		});
+		// const post = { id: uuid4(), title, body, published, author };
 
 		//publish only if published:true
 		if (published) {
 			//anyPost
-			ctx.pubsub.publish("anyPost", {
-				post: { mutation: "CREATED", data: post },
+			pubsub.publish("anyPost", {
+				post: { mutation: "CREATED", data: createdPost },
 			});
 			//usersPost
-			ctx.pubsub.publish("users_Post", author, {
-				usersPost: { mutation: "CREATED", data: post },
+			pubsub.publish("users_Post", author, {
+				usersPost: { mutation: "CREATED", data: createdPost },
 			});
 		}
 		// ctx.pubsub.publish("usersPost", author, { post });
-		posts.push(post);
-		return post;
+		return createdPost;
 	},
-	updatePost: (parent, args, { db, pubsub }, info) => {
+	updatePost: async (
+		parent,
+		args,
+		{ db, pubsub, context: { prisma } },
+		info
+	) => {
 		const { id, authorId, data } = args;
-		const { posts } = db;
+		// const { posts } = db;
 
-		// check if post exists
-		const post = posts.find((post) => post.id === id);
-		if (!post) throw new Error("Post does not exist!");
-		//check if the author is the post's author
-		if (!(post.author === authorId))
-			throw new Error("author not authorised to modify the post");
+		// check if post exists && the user provided is the post's author
+		//* since AND operation does not work on findUnique
+		//* use findMany instead of findFirst;
+		const postExists = await prisma.post.findFirst({
+			where: {
+				AND: [
+					{
+						id,
+					},
+					{
+						author: {
+							id: authorId,
+						},
+					},
+				],
+			},
+		});
+		console.log("postExists", postExists);
+		if (!postExists) throw new Error("cannot post!");
 
-		if (data.title) post.title = data.title;
-		if (data.body) post.body = data.body;
-		if (typeof data.published === "boolean") {
-			post.published = data.published;
-		}
+		// the user provided is the post's author
+		// const authorOfpostExists = postExists.authorId;
+		// console.log(".............", authorOfpostExists);
+		// if (authorOfpostExists != authorId)
+		// 	throw new Error("unauthorise to update the post");
 
+		const updatedPost = await prisma.post.update({
+			where: {
+				id,
+			},
+			data: {
+				...data,
+			},
+			// include: {
+			// 	author: true,
+			// },
+		});
+
+		console.log(".....................", updatedPost);
 		//publish only if published is set true
-		if (post.published) {
-			// publish anyPost
-			pubsub.publish("anyPost", { post: { mutation: "UPDATED", data: post } });
+		const publishedUpdated = typeof updatedPost.published === Boolean;
+		const canPublish = updatedPost.published;
+		console.log(".......", canPublish);
+		if (publishedUpdated) {
+			if (canPublish) {
+				// publish anyPost
+				pubsub.publish("anyPost", {
+					post: { mutation: "UPDATED", data: updatedPost },
+				});
 
-			//publish usersPost
-			pubsub.publish("users_Post", authorId, {
-				usersPost: { mutation: "UPDATED", data: post },
-			});
-		} else {
-			throw new Error("this post cannot be published");
+				//publish usersPost
+				pubsub.publish("users_Post", authorId, {
+					usersPost: { mutation: "UPDATED", data: updatedPost },
+				});
+			} else {
+				throw new Error("this post cannot be published");
+			}
 		}
 
-		return post;
+		return updatedPost;
 	},
-	deletePost: (parent, args, { db, pubsub }, info) => {
-		const { posts } = db;
+	deletePost: async (parent, args, { context: { prisma }, pubsub }, info) => {
+		// const { posts } = db;
 		const { postId } = args;
 		//check if post exists
-		const postIndex = posts.findIndex((post) => post.id === postId);
-		if (postIndex === -1) throw new Error("post does not exists");
+		let deletedPost;
+		try {
+			deletedPost = await prisma.post.delete({
+				where: { id: postId },
+			});
+		} catch (error) {
+			throw new GraphQLError("post does not exists", {
+				extensions: { ...error },
+			});
+		}
 
 		//delete the post with the postIndex
-		const [deletedPost] = posts.splice(postIndex, 1);
+		// const [deletedPost] = posts.splice(postIndex, 1);
 		//publish the post only if deleted post.published is true
 		if (deletedPost.published) {
 			// publish anyPost
 			pubsub.publish("anyPost", {
 				post: { mutation: "DELETED", data: deletedPost },
 			});
-			//allow post delete only if it is the author.
-			const authorId = posts[postIndex].author;
+			const authorId = deletedPost.authorId;
+			console.log("...........authorId", authorId);
 			//publish usersPost
 			pubsub.publish("users_Post", authorId, {
 				usersPost: {

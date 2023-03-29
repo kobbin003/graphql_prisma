@@ -15,16 +15,16 @@ model User {
   name     String
   email    String    @unique
   age      Int?
-  posts    Post[]
+  posts    Post[]    @relation("userOnPost")
   comments Comment[] @relation("commentOnUser")
 }
 
 model Post {
-  id        Int       @id
+  id        String    @id
   title     String
   body      String?
   published Boolean
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User      @relation("userOnPost", fields: [authorId], references: [id], onDelete: Cascade)
   authorId  String
   comments  Comment[] @relation("commentOnPost")
 }
@@ -38,10 +38,10 @@ model Post {
 //* Foreign keys: are used to create relation between tables/models.
 
 model Comment {
-  id       Int    @id @map("comment_id")
+  id       String @id @map("comment_id")
   text     String
   post     Post   @relation("commentOnPost", fields: [postId], references: [id])
-  postId   Int
+  postId   String
   author   User   @relation("commentOnUser", fields: [authorId], references: [id])
   authorId String
 }

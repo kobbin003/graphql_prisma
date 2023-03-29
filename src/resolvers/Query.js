@@ -36,16 +36,26 @@ const Query = {
 		title: "my first graphql api",
 		published: false,
 	}),
-	posts: (parent, args, ctx, info) => {
-		const { posts } = ctx.db;
-		console.log("........", posts);
+	posts: async (parent, args, { context: { prisma } }, info) => {
+		const posts = await prisma.post.findMany();
 		if (!args.query) return posts;
-		return posts.filter((post) => {
-			return (
-				post.title.toLowerCase().includes(args.query.toLowerCase()) ||
-				post.body.toLowerCase().includes(args.query.toLowerCase())
-			);
+		const queriedPosts = await prisma.post.findMany({
+			where: {
+				OR: [
+					{
+						title: {
+							contains: `${args.query}`,
+						},
+					},
+					{
+						body: {
+							contains: `${args.query}`,
+						},
+					},
+				],
+			},
 		});
+		return queriedPosts;
 	},
 	comments: (parent, args, ctx, info) => {
 		const { comments } = ctx.db;
