@@ -1,14 +1,20 @@
 const Comment = {
-	author: (parent, args, ctx, info) => {
-		const { users } = ctx.db;
-		const author = users.find((user) => {
-			return user.id === parent.author;
+	author: async (parent, args, { context: { prisma } }, info) => {
+		const author = await prisma.user.findUnique({
+			where: {
+				id: parent.authorId,
+			},
 		});
 		return author;
 	},
-	post: (parent, args, ctx, info) => {
-		const { posts } = ctx.db;
-		return posts.find((post) => post.id === parent.post);
+	post: async (parent, args, { context: { prisma } }, info) => {
+		const post = await prisma.post.findUnique({
+			where: {
+				id: parent.postId,
+			},
+		});
+		console.log("......post", post);
+		return post;
 	},
 };
 

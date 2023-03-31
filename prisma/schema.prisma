@@ -42,7 +42,7 @@ model Comment {
   text     String
   post     Post   @relation("commentOnPost", fields: [postId], references: [id])
   postId   String
-  author   User   @relation("commentOnUser", fields: [authorId], references: [id])
+  author   User   @relation("commentOnUser", fields: [authorId], references: [id], onDelete: Cascade)
   authorId String
 }
 

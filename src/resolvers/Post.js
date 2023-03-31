@@ -10,9 +10,13 @@ const Post = {
 		});
 		return user;
 	},
-	comments: (parent, args, ctx, info) => {
-		const { comments } = ctx.db;
-		return comments.filter((comment) => comment.post === parent.id);
+	comments: async (parent, args, { ctx, context: { prisma } }, info) => {
+		const comments = await prisma.comment.findMany({
+			where: {
+				postId: parent.id,
+			},
+		});
+		return comments;
 	},
 };
 

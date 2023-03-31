@@ -1,0 +1,52 @@
+import { v4 as uuid4 } from "uuid";
+
+//* How to directly create a user with all its relation field:
+
+const user = await context.prisma.user.create({
+	data: {
+		id: uuidd,
+		name,
+		email,
+		age,
+		posts: {
+			create: [
+				{
+					id: uuid4(),
+					title: "post one",
+					published: true,
+					comments: {
+						create: [
+							{
+								id: uuid4(),
+								text: "first comment",
+								author: {
+									connect: {
+										id: "1",
+									},
+								},
+							},
+						],
+					},
+				},
+				{
+					id: uuid4(),
+					title: "post two",
+					published: true,
+					comments: {
+						create: [
+							{
+								id: uuid4(),
+								text: "second comment",
+								author: {
+									connect: {
+										id: "1",
+									},
+								},
+							},
+						],
+					},
+				},
+			],
+		},
+	},
+});

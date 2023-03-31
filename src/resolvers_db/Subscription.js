@@ -27,20 +27,10 @@ const Subscription = {
 		resolve: (payload) => payload.count * 2,
 	},
 	comment: {
-		subscribe: async (
-			parent,
-			{ postId },
-			{ pubsub, context: { prisma } },
-			info
-		) => {
-			// const post = db.posts.find(
-			// 	(post) => post.id === postId && post.published
-			// );
-			const post = await prisma.post.findUnique({
-				where: {
-					id: postId,
-				},
-			});
+		subscribe: (parent, { postId }, { pubsub, db }, info) => {
+			const post = db.posts.find(
+				(post) => post.id === postId && post.published
+			);
 			if (!post) throw new Error("post not found!");
 			// return pubsub.subscribe(`comment post-${postId}`);
 			return pubsub.subscribe("comment_channel", postId);
@@ -52,20 +42,12 @@ const Subscription = {
 		},
 	},
 	usersPost: {
-		subscribe: async (
-			parent,
-			{ userId },
-			{ pubsub, context: { prisma } },
-			info
-		) => {
+		subscribe: (parent, { userId }, { pubsub, db }, info) => {
+			const { users } = db;
 			//check if user exists
+			const user = users.find((user) => user.id === userId);
+			if (!user) throw new Error("user does not exist!");
 
-			const user = await prisma.user.findUnique({
-				where: {
-					id: userId,
-				},
-			});
-			if (!post) throw new Error("user not found!");
 			return pubsub.subscribe("users_Post", userId);
 			// return pubsub.subscribe("usersPost", userId);
 		},

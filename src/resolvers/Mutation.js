@@ -7,7 +7,7 @@ const Mutation = {
 		});
 		return 1;
 	},
-	createUser: async (parent, args, { db, context }, info) => {
+	createUser: async (parent, args, { context }, info) => {
 		const { name, email, age } = args.data;
 		const emailTaken = await context.prisma.user.findFirst({
 			where: { email },
@@ -22,9 +22,10 @@ const Mutation = {
 			});
 		}
 
+		const uuidd = uuid4();
 		const user = await context.prisma.user.create({
 			data: {
-				id: uuid4(),
+				id: uuidd,
 				name,
 				email,
 				age,
@@ -136,7 +137,6 @@ const Mutation = {
 		info
 	) => {
 		const { id, authorId, data } = args;
-		// const { posts } = db;
 
 		// check if post exists && the user provided is the post's author
 		//* since AND operation does not work on findUnique
@@ -234,49 +234,109 @@ const Mutation = {
 		}
 		return deletedPost;
 	},
-	createComment: (parent, args, ctx, info) => {
-		const { users, posts, comments } = ctx.db;
+	createComment: async (
+		parent,
+		args,
+		{ context: { prisma }, pubsub },
+		info
+	) => {
 		const { text, author, postId } = args.data;
-		const userExists = users.some((user) => user.id === author);
-		const postExistsAndPublished = posts.some((post) => {
-			return post.id === postId && post.published;
+		// const userExists = users.some((user) => user.id === author);
+		const userExists = await prisma.user.findUnique({
+			where: {
+				id: author,
+			},
 		});
 		if (!userExists) throw new Error("User does not exists!");
+		// const postExistsAndPublished = posts.some((post) => {
+		// 	return post.id === postId && post.published;
+		// });
+		const postExistsAndPublished = await prisma.post.findFirst({
+			where: {
+				AND: [
+					{
+						id: postId,
+					},
+					{
+						published: true,
+					},
+				],
+			},
+		});
 		if (!postExistsAndPublished) throw new Error("Unable to find Post1");
-		const comment = { id: uuid4(), text, author, post: postId };
-		comments.push(comment);
+
+		const newComment = await prisma.comment.create({
+			data: {
+				id: uuid4(),
+				text,
+				author: {
+					connect: {
+						id: author,
+					},
+				},
+				post: {
+					connect: {
+						id: postId,
+					},
+				},
+			},
+			include: {
+				post: true,
+				author: true,
+			},
+		});
+		console.log("................", newComment);
+		// const comment = { id: uuid4(), text, author, post: postId };
+		// comments.push(comment);
 		// console.log("....................", { ...comment });
-		ctx.pubsub.publish("comment_channel", postId, {
-			comment: { mutation: "CREATED", data: comment },
+		pubsub.publish("comment_channel", postId, {
+			comment: { mutation: "CREATED", data: newComment },
 		});
-		return comment;
+		return newComment;
 	},
-	updateComment: (parent, args, { db, pubsub }, info) => {
+	updateComment: async (
+		parent,
+		args,
+		{ context: { prisma }, pubsub },
+		info
+	) => {
 		const { id, text } = args;
-		const { comments } = db;
-		//check if comment exists
-		const comment = comments.find((comment) => comment.id === id);
-		if (!comment) throw new Error("comment does not exists!");
-
-		comment.text = text;
+		let updatedComment;
+		try {
+			updatedComment = await prisma.comment.update({
+				where: { id },
+				data: { text },
+			});
+			console.log("1updatedcomment........", updatedComment);
+		} catch (error) {
+			throw new Error(" comment does not exist");
+			throw new GraphQLError("comment does not exists!");
+		}
+		console.log("2updatedcomment........", updatedComment);
 		//publish
-		pubsub.publish("comment_channel", comment.post, {
-			comment: { mutation: "UPDATED", data: comment },
+		pubsub.publish("comment_channel", comment.postId, {
+			comment: { mutation: "UPDATED", data: updatedComment },
 		});
 
-		return comment;
+		return updatedComment;
 	},
-	deleteComment: (parent, args, { db, pubsub }, info) => {
-		const { comments } = db;
-		//check if comment exists
-		const commentIndex = comments.findIndex(
-			(comment) => comment.id === args.commentId
-		);
-		if (commentIndex === -1) throw new Error("comment does not exists");
-
-		//delete the comment with the commentIndex
-		const [deletedComment] = comments.splice(commentIndex, 1);
-		//publish
+	deleteComment: async (
+		parent,
+		args,
+		{ context: { prisma }, pubsub },
+		info
+	) => {
+		const { commentId } = args;
+		let deletedComment;
+		try {
+			deletedComment = await prisma.comment.delete({
+				where: {
+					id: args.commentId,
+				},
+			});
+		} catch (error) {
+			throw new GraphQLError("comment does not exist");
+		}
 		console.log("..........", deletedComment);
 		pubsub.publish("comment_channel", deletedComment.post, {
 			comment: { mutation: "DELETED", data: deletedComment },

@@ -1,14 +1,20 @@
 const User = {
-	posts: (parent, args, ctx, info) => {
-		const { posts } = ctx.db;
-		return posts.filter(
-			(post) => post.author === parent.id
-			// return parent.posts.some((postId) => postId === post.id);
-		);
+	posts: async (parent, args, { context: { prisma } }, info) => {
+		const posts = await prisma.post.findMany({
+			where: {
+				authorId: parent.id,
+			},
+		});
+		return posts;
 	},
-	comments: (parent, args, ctx, info) => {
-		const { comments } = ctx.db;
-		return comments.filter((comment) => comment.author === parent.id);
+	comments: async (parent, args, { context: { prisma } }, info) => {
+		// const { comments } = ctx.db;
+		// return comments.filter((comment) => comment.author === parent.id);
+		const comments = await prisma.comment.findMany({
+			where: {
+				authorId: parent.id,
+			},
+		});
 	},
 };
 export default User;
