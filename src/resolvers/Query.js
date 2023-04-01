@@ -57,10 +57,26 @@ const Query = {
 		});
 		return queriedPosts;
 	},
-	comments: (parent, args, ctx, info) => {
-		const { comments } = ctx.db;
+	comments: async (parent, args, { context: { prisma } }, info) => {
+		const { skip, take } = args;
+		let comments;
+		if (skip || take) {
+			comments = await prisma.comment.findMany({
+				skip,
+				take,
+				orderBy: {
+					id: "asc",
+				},
+			});
+		} else {
+			comments = await prisma.comment.findMany({
+				orderBy: {
+					id: "asc",
+				},
+			});
+		}
 		console.log("..............", comments);
-		if (!args) return comments;
+		return comments;
 	},
 	takeArgument: (parent, args, ctx, info) => {
 		if (args.msg) return `This is the message: ${args.msg}`;

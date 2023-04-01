@@ -4,7 +4,7 @@ type Query {
 	users(letter: String): [User!]!
 	post: Post!
 	posts(query: String): [Post!]!
-	comments: [Comment!]!
+	comments(skip: Int, take: Int): [Comment!]!
 	takeArgument(msg: String): String!
 	addFloats(nums: [Float!]!): Float
 }
