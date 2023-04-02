@@ -8,16 +8,18 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "babel src -d dist --watch --copy-files",
     "server": "node --trace-warnings --watch src/index.js",
-    "start": "npm run server"
+    "start": "NODE_ENV=development npm run server"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^4.11.0",
+    "bcrypt": "^5.1.0",
     "graphql": "^16.6.0",
     "graphql-scalars": "^1.20.4",
     "graphql-yoga": "^3.7.3",
+    "jsonwebtoken": "^9.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

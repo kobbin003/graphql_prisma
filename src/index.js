@@ -20,7 +20,6 @@ import { createContext } from "./context.js";
 
 const pubsub = createPubSub();
 // const prisma = new PrismaClient();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -37,18 +36,24 @@ const schema = createSchema({
 	},
 });
 // const prisma = createContext();
-// create a yoga instance with the schema
-const yoga = createYoga({
+let yogaOptions = {
 	schema,
 	graphqlEndpoint: "/",
 	landingPage: false, //this will take u directly to GraphiQL
-	context: {
+	context: async ({ request }) => ({
 		db,
 		pubsub,
-		context: createContext(),
-	},
-});
-
+		context: await createContext(request),
+	}),
+};
+if (process.env.NODE_ENV === "development") {
+	// console.log("development environment");
+	// disable masked error if in development environment
+	yogaOptions = { ...yogaOptions, maskedErrors: false };
+}
+// create a yoga instance with the schema
+const yoga = createYoga(yogaOptions);
+// console.log("yoga...........", yoga);
 // create server
 const server = createServer(yoga);
 

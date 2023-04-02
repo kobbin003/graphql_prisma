@@ -1,15 +1,17 @@
 const Query = {
 	// hello: () => "world",
 	// name: () => "kobin",
-	me: () => ({
-		id: 12,
-		name: "Duyu Kobin",
-		email: "dkfeto@gmail.com",
-		age: 30,
-	}),
+	me: (parent, args, { context, db }, info) => {
+		// console.log("Query...me", context.currentUser);
+		if (context.currentUser === null) {
+			throw new Error("Unauthenticated!");
+		}
+
+		return context.currentUser;
+	},
 	users: async (parent, args, { context, db }, info) => {
 		const users = await context.prisma.user.findMany();
-		console.log(".................users!!!!!!!", users);
+		// console.log(".................users!!!!!!!", users);
 		// const users = db.users;
 
 		if (!args.letter) return users;
@@ -25,7 +27,7 @@ const Query = {
 				email: true,
 			},
 		});
-		console.log("user with argstring", user_with_argString);
+		// console.log("user with argstring", user_with_argString);
 		// return users.filter((user) =>
 		// 	user.name.toLowerCase().includes(args.letter.toLowerCase())
 		// );
@@ -75,7 +77,7 @@ const Query = {
 				},
 			});
 		}
-		console.log("..............", comments);
+		// console.log("..............", comments);
 		return comments;
 	},
 	takeArgument: (parent, args, ctx, info) => {

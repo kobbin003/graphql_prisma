@@ -1,11 +1,64 @@
 import { v4 as uuid4 } from "uuid";
 import { GraphQLError } from "graphql";
+import { hash, compare } from "bcrypt";
+import jwt from "jsonwebtoken";
+import { APP_SECRET } from "../auth.js";
 const Mutation = {
-	count: (parent, args, { pubsub }, info) => {
+	count: (parent, args, { pubsub, request }, info) => {
 		pubsub.publish("count", {
 			count: 1,
 		});
+		// console.log("request...", request);
 		return 1;
+	},
+	signup: async (
+		parent,
+		{ name, email, password },
+		{ context: { prisma } },
+		info
+	) => {
+		// console.log("reached...............");
+		const saltRounds = 10;
+		const hashedPassword = await hash(password, saltRounds);
+		// check if email taken
+		const emailTaken = await prisma.user.findFirst({
+			where: { email },
+		});
+		if (emailTaken) {
+			// throw new Error("this email has been taken!");
+			throw new GraphQLError("email has been taken", {
+				extensions: {
+					status: "409",
+					"status-message": "conflict",
+				},
+			});
+		}
+		// create user
+		const user = await prisma.user.create({
+			data: { id: uuid4(), name, email, password: hashedPassword },
+		});
+		const token = jwt.sign({ userId: user.id }, APP_SECRET);
+		return { token, user };
+	},
+	login: async (
+		parent,
+		{ email, password },
+		{ context: { prisma }, ...restParams },
+		info
+	) => {
+		// console.log(".......restParams", restParams.request.headers);
+		// const decoded = jwt.verify()
+		const user = await prisma.user.findUnique({
+			where: {
+				email,
+			},
+		});
+		if (!user) throw new Error("no user with such email found");
+		const passwordVerified = await compare(password, user.password);
+		//* send token if password veified true
+		if (!passwordVerified) throw new Error("invalid password");
+		const token = await jwt.sign({ userId: user.id }, APP_SECRET);
+		return { token, user };
 	},
 	createUser: async (parent, args, { context }, info) => {
 		const { name, email, age } = args.data;
@@ -16,8 +69,10 @@ const Mutation = {
 			// throw new Error("this email has been taken!");
 			throw new GraphQLError("email has been taken", {
 				extensions: {
-					status: "409",
-					"status-message": "conflict",
+					http: {
+						status: "409",
+						"status-message": "conflict",
+					},
 				},
 			});
 		}
@@ -155,7 +210,7 @@ const Mutation = {
 				],
 			},
 		});
-		console.log("postExists", postExists);
+		// console.log("postExists", postExists);
 		if (!postExists) throw new Error("cannot post!");
 
 		// the user provided is the post's author
@@ -176,11 +231,11 @@ const Mutation = {
 			// },
 		});
 
-		console.log(".....................", updatedPost);
+		// console.log(".....................", updatedPost);
 		//publish only if published is set true
 		const publishedUpdated = typeof updatedPost.published === Boolean;
 		const canPublish = updatedPost.published;
-		console.log(".......", canPublish);
+		// console.log(".......", canPublish);
 		if (publishedUpdated) {
 			if (canPublish) {
 				// publish anyPost
@@ -223,7 +278,7 @@ const Mutation = {
 				post: { mutation: "DELETED", data: deletedPost },
 			});
 			const authorId = deletedPost.authorId;
-			console.log("...........authorId", authorId);
+			// console.log("...........authorId", authorId);
 			//publish usersPost
 			pubsub.publish("users_Post", authorId, {
 				usersPost: {
@@ -285,7 +340,7 @@ const Mutation = {
 				author: true,
 			},
 		});
-		console.log("................", newComment);
+		// console.log("................", newComment);
 		// const comment = { id: uuid4(), text, author, post: postId };
 		// comments.push(comment);
 		// console.log("....................", { ...comment });
@@ -307,12 +362,12 @@ const Mutation = {
 				where: { id },
 				data: { text },
 			});
-			console.log("1updatedcomment........", updatedComment);
+			// console.log("1updatedcomment........", updatedComment);
 		} catch (error) {
 			throw new Error(" comment does not exist");
 			throw new GraphQLError("comment does not exists!");
 		}
-		console.log("2updatedcomment........", updatedComment);
+		// console.log("2updatedcomment........", updatedComment);
 		//publish
 		pubsub.publish("comment_channel", comment.postId, {
 			comment: { mutation: "UPDATED", data: updatedComment },
@@ -337,7 +392,7 @@ const Mutation = {
 		} catch (error) {
 			throw new GraphQLError("comment does not exist");
 		}
-		console.log("..........", deletedComment);
+		// console.log("..........", deletedComment);
 		pubsub.publish("comment_channel", deletedComment.post, {
 			comment: { mutation: "DELETED", data: deletedComment },
 		});
