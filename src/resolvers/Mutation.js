@@ -3,6 +3,7 @@ import { GraphQLError } from "graphql";
 import { hash, compare } from "bcrypt";
 import jwt from "jsonwebtoken";
 import { APP_SECRET } from "../auth.js";
+import { hashPassword } from "../utils/hashPassword.js";
 const Mutation = {
 	count: (parent, args, { pubsub, request }, info) => {
 		pubsub.publish("count", {
@@ -18,8 +19,6 @@ const Mutation = {
 		info
 	) => {
 		// console.log("reached...............");
-		const saltRounds = 10;
-		const hashedPassword = await hash(password, saltRounds);
 		// check if email taken
 		const emailTaken = await prisma.user.findFirst({
 			where: { email },
@@ -33,12 +32,19 @@ const Mutation = {
 				},
 			});
 		}
+		// create id
+		const id = uuid4();
+		// create token
+		const token = jwt.sign({ userId: id }, APP_SECRET);
+		// create password hash
+		const hashedPassword = await hashPassword(password);
 		// create user
 		const user = await prisma.user.create({
-			data: { id: uuid4(), name, email, password: hashedPassword },
+			data: { id, name, email, password: hashedPassword, currentToken: token },
 		});
-		const token = jwt.sign({ userId: user.id }, APP_SECRET);
-		return { token, user };
+		delete user["password"];
+
+		return { token, user: userWithoutPassword };
 	},
 	login: async (
 		parent,
@@ -48,16 +54,26 @@ const Mutation = {
 	) => {
 		// console.log(".......restParams", restParams.request.headers);
 		// const decoded = jwt.verify()
-		const user = await prisma.user.findUnique({
+		let user = await prisma.user.findUnique({
 			where: {
 				email,
 			},
 		});
 		if (!user) throw new Error("no user with such email found");
 		const passwordVerified = await compare(password, user.password);
-		//* send token if password veified true
-		if (!passwordVerified) throw new Error("invalid password");
+		//* send token if password verified true
+		if (!passwordVerified) throw new Error("unable to login");
 		const token = await jwt.sign({ userId: user.id }, APP_SECRET);
+
+		//update the currentToken
+		user = await prisma.user.update({
+			where: {
+				id: user.id,
+			},
+			data: {
+				currentToken: token,
+			},
+		});
 		return { token, user };
 	},
 	createUser: async (parent, args, { context }, info) => {
@@ -89,41 +105,58 @@ const Mutation = {
 		return user;
 	},
 	updateUser: async (parent, args, { context }, info) => {
-		const { id, data } = args;
-		//check if email taken
-		const emailTaken = await context.prisma.user.findFirst({
-			where: { email: data.email },
-		});
-		if (emailTaken) {
-			// throw new Error("this email has been taken!");
-			throw new GraphQLError("email has been taken", {
-				extensions: {
-					status: "409",
-					"status-message": "conflict",
-				},
+		// check i user is authenticated and authorized
+		if (!context.currentUser) throw new Error("user not authorised!");
+		console.log("Mutation....updateUser", context.currentUser);
+
+		const userId = context.currentUser.id;
+		const { data } = args;
+		//check if email taken only if email arg is provided
+		if (data.email) {
+			const emailTaken = await context.prisma.user.findFirst({
+				where: { email: data.email },
 			});
+			if (emailTaken) {
+				// throw new Error("this email has been taken!");
+				throw new GraphQLError("email has been taken", {
+					extensions: {
+						status: "409",
+						"status-message": "conflict",
+					},
+				});
+			}
+		}
+		//update password if password provided
+		if (typeof data.password === "string") {
+			data.password = await hashPassword(data.password);
 		}
 		let updatedUser;
 		try {
 			updatedUser = await context.prisma.user.update({
 				where: {
-					id,
+					id: userId,
 				},
-				data,
+				data: {
+					password: await hashPassword(data.password),
+					...data,
+				},
 			});
 		} catch (error) {
 			//throws error if user with "id" is not found
 			throw new GraphQLError("user not found", { extensions: { ...error } });
 		}
+		delete updatedUser["password"];
 
 		return updatedUser;
 	},
 	deleteUser: async (parent, args, { db, context }, info) => {
+		// check i user is authenticated and authorized
+		if (!context.currentUser) throw new Error("user not authorised!");
 		let deletedUser;
 		try {
 			deletedUser = await context.prisma.user.delete({
 				where: {
-					id: args.userId,
+					id: context.currentUser.id,
 				},
 				select: {
 					id: true,
@@ -131,27 +164,30 @@ const Mutation = {
 					email: true,
 				},
 			});
+			console.log("deleteduser", deletedUser);
 		} catch (error) {
 			// it throws an error when user.delete action is prevented
 			// due to unavailability of "args.userId"
 			throw new GraphQLError("user not found", { extensions: { ...error } });
 		}
-		// delete post associated with the user.
-		// delete comments associated with the post.
+
 		return deletedUser;
 	},
 	createPost: async (
 		parent,
 		{ data },
-		{ pubsub, context: { prisma } },
+		{ pubsub, context: { prisma, currentUser } },
 		info
 	) => {
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not authorised!");
 		// const { users, posts } = ctx.db;
-		const { title, body, published, author } = data;
+		const { title, body, published } = data;
+		const userId = currentUser.id;
 		//check if user exists
 		const userExists = await prisma.user.findUnique({
 			where: {
-				id: data.author,
+				id: userId,
 			},
 		});
 
@@ -164,7 +200,7 @@ const Mutation = {
 				published,
 				author: {
 					connect: {
-						id: author,
+						id: userId,
 					},
 				},
 			},
@@ -177,22 +213,24 @@ const Mutation = {
 			pubsub.publish("anyPost", {
 				post: { mutation: "CREATED", data: createdPost },
 			});
-			//usersPost
-			pubsub.publish("users_Post", author, {
-				usersPost: { mutation: "CREATED", data: createdPost },
+			//myPosts
+			pubsub.publish("myPost_channel", author, {
+				myPosts: { mutation: "CREATED", data: createdPost },
 			});
 		}
-		// ctx.pubsub.publish("usersPost", author, { post });
+		// ctx.pubsub.publish("myPosts", author, { post });
 		return createdPost;
 	},
 	updatePost: async (
 		parent,
 		args,
-		{ db, pubsub, context: { prisma } },
+		{ db, pubsub, context: { prisma, currentUser } },
 		info
 	) => {
-		const { id, authorId, data } = args;
-
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not Authorised!");
+		const { id, data } = args;
+		const authorId = currentUser.id;
 		// check if post exists && the user provided is the post's author
 		//* since AND operation does not work on findUnique
 		//* use findMany instead of findFirst;
@@ -213,12 +251,6 @@ const Mutation = {
 		// console.log("postExists", postExists);
 		if (!postExists) throw new Error("cannot post!");
 
-		// the user provided is the post's author
-		// const authorOfpostExists = postExists.authorId;
-		// console.log(".............", authorOfpostExists);
-		// if (authorOfpostExists != authorId)
-		// 	throw new Error("unauthorise to update the post");
-
 		const updatedPost = await prisma.post.update({
 			where: {
 				id,
@@ -230,6 +262,14 @@ const Mutation = {
 			// 	author: true,
 			// },
 		});
+		// updated data has published === false(i.e post is unpublished),
+		// delete all the comment associated with the post.
+		if (data.published && data.published === false)
+			await prisma.comment.deleteMany({
+				where: {
+					postId: id,
+				},
+			});
 
 		// console.log(".....................", updatedPost);
 		//publish only if published is set true
@@ -243,9 +283,9 @@ const Mutation = {
 					post: { mutation: "UPDATED", data: updatedPost },
 				});
 
-				//publish usersPost
-				pubsub.publish("users_Post", authorId, {
-					usersPost: { mutation: "UPDATED", data: updatedPost },
+				//publish myPosts
+				pubsub.publish("myPost_channel", authorId, {
+					myPosts: { mutation: "UPDATED", data: updatedPost },
 				});
 			} else {
 				throw new Error("this post cannot be published");
@@ -254,10 +294,28 @@ const Mutation = {
 
 		return updatedPost;
 	},
-	deletePost: async (parent, args, { context: { prisma }, pubsub }, info) => {
+	deletePost: async (
+		parent,
+		args,
+		{ context: { prisma, currentUser }, pubsub },
+		info
+	) => {
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not suthorised!");
 		// const { posts } = db;
 		const { postId } = args;
-		//check if post exists
+		//check if currentUser is the post's author;
+		const userId = currentUser.id;
+		const authorOfPost = await prisma.post.findFirst({
+			where: {
+				// author: {
+				// 	id: userId,
+				// },
+				//   OR
+				authorId: userId,
+			},
+		});
+		if (!authorOfPost) throw new Error("unauthorised user");
 		let deletedPost;
 		try {
 			deletedPost = await prisma.post.delete({
@@ -279,9 +337,9 @@ const Mutation = {
 			});
 			const authorId = deletedPost.authorId;
 			// console.log("...........authorId", authorId);
-			//publish usersPost
-			pubsub.publish("users_Post", authorId, {
-				usersPost: {
+			//publish myPosts
+			pubsub.publish("myPost_channel", authorId, {
+				myPosts: {
 					mutation: "DELETED",
 					data: deletedPost,
 				},
@@ -292,17 +350,12 @@ const Mutation = {
 	createComment: async (
 		parent,
 		args,
-		{ context: { prisma }, pubsub },
+		{ context: { prisma, currentUser }, pubsub },
 		info
 	) => {
-		const { text, author, postId } = args.data;
-		// const userExists = users.some((user) => user.id === author);
-		const userExists = await prisma.user.findUnique({
-			where: {
-				id: author,
-			},
-		});
-		if (!userExists) throw new Error("User does not exists!");
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not suthorised!");
+		const { text, postId } = args.data;
 		// const postExistsAndPublished = posts.some((post) => {
 		// 	return post.id === postId && post.published;
 		// });
@@ -318,7 +371,7 @@ const Mutation = {
 				],
 			},
 		});
-		if (!postExistsAndPublished) throw new Error("Unable to find Post1");
+		if (!postExistsAndPublished) throw new Error("Unable to find Post");
 
 		const newComment = await prisma.comment.create({
 			data: {
@@ -326,7 +379,7 @@ const Mutation = {
 				text,
 				author: {
 					connect: {
-						id: author,
+						id: currentUser.id,
 					},
 				},
 				post: {
@@ -352,10 +405,21 @@ const Mutation = {
 	updateComment: async (
 		parent,
 		args,
-		{ context: { prisma }, pubsub },
+		{ context: { prisma, currentUser }, pubsub },
 		info
 	) => {
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not authorised!");
 		const { id, text } = args;
+		// other users cannot update comment
+		const commentExists = await prisma.comment.findFirst({
+			where: {
+				id,
+				authorId: currentUser.id,
+			},
+		});
+		if (!commentExists) throw new Error("comment does not exist");
+		// update comment
 		let updatedComment;
 		try {
 			updatedComment = await prisma.comment.update({
@@ -369,7 +433,7 @@ const Mutation = {
 		}
 		// console.log("2updatedcomment........", updatedComment);
 		//publish
-		pubsub.publish("comment_channel", comment.postId, {
+		pubsub.publish("comment_channel", updatedComment.postId, {
 			comment: { mutation: "UPDATED", data: updatedComment },
 		});
 
@@ -378,15 +442,26 @@ const Mutation = {
 	deleteComment: async (
 		parent,
 		args,
-		{ context: { prisma }, pubsub },
+		{ context: { prisma, currentUser }, pubsub },
 		info
 	) => {
+		// check i user is authenticated and authorized
+		if (!currentUser) throw new Error("user not suthorised!");
 		const { commentId } = args;
+		// other users cannot delete comment
+		const commentExists = await prisma.comment.findFirst({
+			where: {
+				id: commentId,
+				authorId: currentUser.id,
+			},
+		});
+		if (!commentExists) throw new Error("comment does not exist");
+		// delete comment
 		let deletedComment;
 		try {
 			deletedComment = await prisma.comment.delete({
 				where: {
-					id: args.commentId,
+					id: commentId,
 				},
 			});
 		} catch (error) {

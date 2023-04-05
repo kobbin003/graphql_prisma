@@ -9,8 +9,9 @@ export const authenticateUser = async (prisma, request) => {
 	// console.log("auth.js", header);
 
 	if (header !== null) {
-		const token = header;
+		const token = header.split(" ")[1];
 		// console.log("token.........", token);
+		// check if token is the current token:
 		const tokenPayload = await jwt.verify(token, APP_SECRET);
 		// console.log("tokenpayload.........", tokenPayload);
 		const userId = tokenPayload.userId;
@@ -19,7 +20,16 @@ export const authenticateUser = async (prisma, request) => {
 			where: {
 				id: userId,
 			},
+			// since only user's id will suffice for making queries
+			select: {
+				id: true,
+				currentToken: true,
+			},
 		});
+		delete user["password"];
+		console.log("...............user_auth.js", user);
+		// prevent the user from using its old token.
+		if (token !== user.currentToken) throw new Error("invalid token");
 		return user;
 	}
 	return null;

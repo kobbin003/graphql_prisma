@@ -2,8 +2,9 @@ type Query {
 	getName: String!
 	me: User!
 	users(letter: String): [User!]!
-	post: Post!
+	post(id: ID!): Post!
 	posts(query: String): [Post!]!
+	myPosts(query: String): [Post!]!
 	comments(skip: Int, take: Int): [Comment!]!
 	takeArgument(msg: String): String!
 	addFloats(nums: [Float!]!): Float
@@ -13,11 +14,11 @@ type Mutation {
 	signup(name: String!, email: String!, password: String!): AuthPayload!
 	login(email: String!, password: String!): AuthPayload!
 	createUser(data: CreateUserInput!): User!
-	deleteUser(userId: ID!): User!
-	updateUser(id: ID!, data: UpdateUserInput!): User!
+	updateUser(data: UpdateUserInput!): User!
+	deleteUser: User!
 	createPost(data: CreatePostInput!): Post!
+	updatePost(id: ID!, data: UpdatePostInput!): Post!
 	deletePost(postId: ID!): Post!
-	updatePost(id: ID!, authorId: ID!, data: UpdatePostInput!): Post!
 	createComment(data: CreateCommentInput!): Comment!
 	updateComment(id: ID!, text: String!): Comment!
 	deleteComment(commentId: ID!): Comment!
@@ -26,7 +27,7 @@ type Subscription {
 	count: Int!
 	comment(postId: ID!): CommentSubscriptionPayload!
 	post: PostSubscriptionPayload!
-	usersPost(userId: ID!): PostSubscriptionPayload!
+	myPosts: PostSubscriptionPayload!
 }
 input CreateUserInput {
 	name: String!
@@ -36,13 +37,12 @@ input CreateUserInput {
 input UpdateUserInput {
 	name: String
 	email: String
-	age: Int
+	password: String
 }
 input CreatePostInput {
 	title: String!
 	body: String
 	published: Boolean!
-	author: ID!
 }
 input UpdatePostInput {
 	title: String
@@ -51,7 +51,6 @@ input UpdatePostInput {
 }
 input CreateCommentInput {
 	text: String!
-	author: ID!
 	postId: ID!
 }
 input UpdateCommentInput {

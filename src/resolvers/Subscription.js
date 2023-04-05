@@ -36,9 +36,10 @@ const Subscription = {
 			// const post = db.posts.find(
 			// 	(post) => post.id === postId && post.published
 			// );
-			const post = await prisma.post.findUnique({
+			const post = await prisma.post.findFirst({
 				where: {
 					id: postId,
+					published: true,
 				},
 			});
 			if (!post) throw new Error("post not found!");
@@ -51,22 +52,23 @@ const Subscription = {
 			return pubsub.subscribe("anyPost");
 		},
 	},
-	usersPost: {
+	myPosts: {
 		subscribe: async (
 			parent,
-			{ userId },
-			{ pubsub, context: { prisma } },
+			args,
+			{ pubsub, context: { prisma, currentUser } },
 			info
 		) => {
 			//check if user exists
-
+			if (!currentUser) throw new Error("Not Authorized!");
+			const userId = currentUser.id;
 			const user = await prisma.user.findUnique({
 				where: {
 					id: userId,
 				},
 			});
-			if (!post) throw new Error("user not found!");
-			return pubsub.subscribe("users_Post", userId);
+			if (!user) throw new Error("user not found!");
+			return pubsub.subscribe("myPost_channel", userId);
 			// return pubsub.subscribe("usersPost", userId);
 		},
 	},

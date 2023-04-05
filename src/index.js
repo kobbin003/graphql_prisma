@@ -3,18 +3,8 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// import { schema } from "./schema.graphql";
 import { createSchema, createYoga, createPubSub } from "graphql-yoga";
-// import { PrismaClient } from "@prisma/client";
-
-// 2
-// import { schema } from "./schema";
-import Query from "./resolvers/Query.js";
-import Mutation from "./resolvers/Mutation.js";
-import User from "./resolvers/User.js";
-import Post from "./resolvers/Post.js";
-import Comment from "./resolvers/Comment.js";
-import Subscription from "./resolvers/Subscription.js";
+import { resolvers } from "./resolvers/index.js";
 import db from "./db.js";
 import { createContext } from "./context.js";
 
@@ -26,14 +16,7 @@ const __dirname = dirname(__filename);
 const schema = createSchema({
 	typeDefs: readFileSync(join(__dirname, "schema.graphql"), "utf8"),
 	// typeDefs: "/dist/me.graphql",
-	resolvers: {
-		Query,
-		Mutation,
-		User,
-		Post,
-		Comment,
-		Subscription,
-	},
+	resolvers,
 });
 // const prisma = createContext();
 let yogaOptions = {
@@ -46,11 +29,13 @@ let yogaOptions = {
 		context: await createContext(request),
 	}),
 };
+/*
 if (process.env.NODE_ENV === "development") {
 	// console.log("development environment");
 	// disable masked error if in development environment
 	yogaOptions = { ...yogaOptions, maskedErrors: false };
 }
+*/
 // create a yoga instance with the schema
 const yoga = createYoga(yogaOptions);
 // console.log("yoga...........", yoga);
