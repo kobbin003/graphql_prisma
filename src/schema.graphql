@@ -5,7 +5,7 @@ type Query {
 	post(id: ID!): Post!
 	posts(query: String): [Post!]!
 	myPosts(query: String): [Post!]!
-	comments(skip: Int, take: Int): [Comment!]!
+	comments(skip: Int, take: Int, sort: SortCommentsInput): [Comment!]!
 	takeArgument(msg: String): String!
 	addFloats(nums: [Float!]!): Float
 }
@@ -56,6 +56,14 @@ input CreateCommentInput {
 input UpdateCommentInput {
 	text: String
 }
+input SortCommentsInput {
+	orderById: OrderType
+	orderByText: OrderType
+}
+enum OrderType {
+	asc
+	desc
+}
 type User {
 	id: ID!
 	name: String!
@@ -71,6 +79,8 @@ type Post {
 	published: Boolean!
 	author: User!
 	comments: [Comment!]!
+	createdAt: String!
+	updatedAt: String!
 }
 type Comment {
 	id: ID!

@@ -1,4 +1,4 @@
-import { deleteFields } from "../utils/utils.js";
+import { deleteFields } from "../utils/deleteFields.js";
 const Query = {
 	// hello: () => "world",
 	// name: () => "kobin",
@@ -109,14 +109,24 @@ const Query = {
 		return myPosts;
 	},
 	comments: async (parent, args, { context: { prisma } }, info) => {
-		const { skip, take } = args;
-		let comments;
+		const { skip, take, sort } = args;
+		// console.log("...................comment", sort?.orderByText);
+		const commentsOption = {
+			skip,
+			take,
+			orderBy: {
+				text: sort?.orderByText,
+			},
+		};
+
+		const comments = await prisma.comment.findMany(commentsOption);
+		/*
 		if (skip || take) {
 			comments = await prisma.comment.findMany({
 				skip,
 				take,
 				orderBy: {
-					id: "asc",
+					id: text,
 				},
 			});
 		} else {
@@ -126,6 +136,7 @@ const Query = {
 				},
 			});
 		}
+		*/
 		// console.log("..............", comments);
 		return comments;
 	},

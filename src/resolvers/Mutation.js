@@ -35,16 +35,22 @@ const Mutation = {
 		// create id
 		const id = uuid4();
 		// create token
-		const token = jwt.sign({ userId: id }, APP_SECRET);
+		const token = await jwt.sign({ userId: id }, APP_SECRET);
 		// create password hash
 		const hashedPassword = await hashPassword(password);
 		// create user
 		const user = await prisma.user.create({
-			data: { id, name, email, password: hashedPassword, currentToken: token },
+			data: {
+				id,
+				name,
+				email,
+				password: hashedPassword,
+				currentToken: token,
+			},
 		});
 		delete user["password"];
 
-		return { token, user: userWithoutPassword };
+		return { token, user };
 	},
 	login: async (
 		parent,
@@ -149,26 +155,34 @@ const Mutation = {
 
 		return updatedUser;
 	},
-	deleteUser: async (parent, args, { db, context }, info) => {
+	deleteUser: async (
+		parent,
+		args,
+		{ context: { prisma, currentUser } },
+		info
+	) => {
 		// check i user is authenticated and authorized
-		if (!context.currentUser) throw new Error("user not authorised!");
+		if (!currentUser) throw new Error("user not authorised!");
 		let deletedUser;
 		try {
-			deletedUser = await context.prisma.user.delete({
+			console.log(
+				"trying.....",
+				await prisma.user.findUnique({
+					where: {
+						id: currentUser.id,
+					},
+				})
+			);
+			deletedUser = await prisma.user.delete({
 				where: {
-					id: context.currentUser.id,
-				},
-				select: {
-					id: true,
-					name: true,
-					email: true,
+					id: currentUser.id,
 				},
 			});
-			console.log("deleteduser", deletedUser);
 		} catch (error) {
 			// it throws an error when user.delete action is prevented
 			// due to unavailability of "args.userId"
-			throw new GraphQLError("user not found", { extensions: { ...error } });
+			// throw new GraphQLError("user not found", { extensions: { ...error } });
+			throw new Error("user not found", { extensions: { ...error } });
 		}
 
 		return deletedUser;
@@ -183,6 +197,7 @@ const Mutation = {
 		if (!currentUser) throw new Error("user not authorised!");
 		// const { users, posts } = ctx.db;
 		const { title, body, published } = data;
+		console.log("currentuser...createpost", currentUser);
 		const userId = currentUser.id;
 		//check if user exists
 		const userExists = await prisma.user.findUnique({
@@ -194,7 +209,7 @@ const Mutation = {
 		if (!userExists) throw new GraphQLError("User does not exists");
 		const createdPost = await prisma.post.create({
 			data: {
-				id: uuid4(),
+				// id: uuid4(),// removed because default(uuid())
 				title,
 				body,
 				published,
@@ -214,7 +229,7 @@ const Mutation = {
 				post: { mutation: "CREATED", data: createdPost },
 			});
 			//myPosts
-			pubsub.publish("myPost_channel", author, {
+			pubsub.publish("myPost_channel", userId, {
 				myPosts: { mutation: "CREATED", data: createdPost },
 			});
 		}

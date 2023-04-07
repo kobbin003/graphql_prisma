@@ -27,7 +27,7 @@ export const authenticateUser = async (prisma, request) => {
 			},
 		});
 		delete user["password"];
-		console.log("...............user_auth.js", user);
+		// console.log("...............user_auth.js", user);
 		// prevent the user from using its old token.
 		if (token !== user.currentToken) throw new Error("invalid token");
 		return user;

@@ -8,7 +8,7 @@ const Comment = {
 		return author;
 	},
 	post: async (parent, args, { context: { prisma } }, info) => {
-		const post = await prisma.post.findFirst({
+		const post = await prisma.post.findFirstOrThrow({
 			where: {
 				id: parent.postId,
 				published: true,

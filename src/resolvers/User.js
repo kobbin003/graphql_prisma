@@ -1,13 +1,15 @@
 const User = {
 	email: (parent, args, { context: { prisma, currentUser } }, info) => {
 		// console.log(".........", currentUser, parent);
-		if (currentUser.id !== parent.id) {
-			// console.log("NO");
-			return "x--x--x--x--x";
-		} else {
+		if (currentUser && currentUser.id === parent.id) {
 			// console.log("YES");
 			return parent.email;
+		} else {
+			// console.log("NO");
+			return "x--x--x--x--x";
 		}
+		//* you can further set to return email when !currentUser
+		//* i.e in the case of login or signup!
 	},
 	posts: async (parent, args, { context: { prisma } }, info) => {
 		const posts = await prisma.post.findMany({
