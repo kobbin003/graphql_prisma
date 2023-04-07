@@ -42,8 +42,7 @@ const yoga = createYoga(yogaOptions);
 // create server
 const server = createServer(yoga);
 
-server.listen(4000, () =>
-	console.info(`server is running on http://localhost:4000`)
-);
+const PORT = process.env.PORT || 4000;
+server.listen(4000, () => console.info(`server is running on port ${PORT}`));
 
 // console.log("babel is working");
