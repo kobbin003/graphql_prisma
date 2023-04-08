@@ -11,6 +11,9 @@ import { createContext } from "./context.js";
 const pubsub = createPubSub();
 // const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
+/**
+ * In browsers, this(url) is either the URL from which the script was obtained (for external scripts), or the URL of the containing document (for inline scripts). In Node.js, this is the file path (including the file:// protocol).
+ */
 const __dirname = dirname(__filename);
 
 const schema = createSchema({

@@ -1,8 +1,13 @@
 // import { createContext } from "./context";
 import jwt from "jsonwebtoken";
-
-export const APP_SECRET = "this is my secret";
-
+import * as dotenv from "dotenv";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, ".env") });
+export const APP_SECRET = process.env.APP_SECRET;
+console.log("APP_SECRET", APP_SECRET, __filename, __dirname, import.meta);
 // const { prisma } = createContext();
 export const authenticateUser = async (prisma, request) => {
 	const header = request.headers.get("authorization");
