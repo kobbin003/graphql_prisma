@@ -5,7 +5,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, ".env") });
+//* just to show how to use config option for .env path other than your root
+//* since we are keeping the .env file in th root, we can skip giving this option.
+dotenv.config({ path: join(__dirname, "..", ".env") });
 export const APP_SECRET = process.env.APP_SECRET;
 console.log("APP_SECRET", APP_SECRET, __filename, __dirname, import.meta);
 // const { prisma } = createContext();
