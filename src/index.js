@@ -27,7 +27,7 @@ let yogaOptions = {
 	graphqlEndpoint: "/",
 	landingPage: false, //this will take u directly to GraphiQL
 	context: async ({ request }) => ({
-		db,
+		// db,
 		pubsub,
 		context: await createContext(request),
 	}),
