@@ -14,7 +14,7 @@ model User {
   id           String    @id
   name         String
   password     String
-  currentToken String
+  currentToken String?
   email        String    @unique
   age          Int?
   posts        Post[]    @relation("userAndPost")

@@ -12,6 +12,7 @@ type Query {
 type Mutation {
 	count(data: Int): Int!
 	signup(name: String!, email: String!, password: String!): AuthPayload!
+	loginAfterSignUp: User!
 	login(email: String!, password: String!): AuthPayload!
 	createUser(data: CreateUserInput!): User!
 	updateUser(data: UpdateUserInput!): User!

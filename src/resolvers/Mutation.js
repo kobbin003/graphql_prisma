@@ -15,7 +15,7 @@ const Mutation = {
 	signup: async (
 		parent,
 		{ name, email, password },
-		{ context: { prisma } },
+		{ context: { prisma }, request },
 		info
 	) => {
 		// console.log("reached...............");
@@ -51,6 +51,20 @@ const Mutation = {
 		delete user["password"];
 
 		return { token, user };
+	},
+	loginAfterSignUp: async (
+		parent,
+		args,
+		{ context: { prisma, currentUser } },
+		info
+	) => {
+		if (!currentUser) throw new Error("user not authorised!");
+		const user = await prisma.user.findUnique({
+			where: {
+				id: currentUser.id,
+			},
+		});
+		return user;
 	},
 	login: async (
 		parent,

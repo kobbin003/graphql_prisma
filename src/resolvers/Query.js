@@ -17,7 +17,7 @@ const Query = {
 		return user;
 	},
 	//get user by query
-	users: async (parent, args, { context, db }, info) => {
+	users: async (parent, args, { context, db, request }, info) => {
 		const users = await context.prisma.user.findMany();
 		// console.log(".................users!!!!!!!", users);
 		// const users = db.users;

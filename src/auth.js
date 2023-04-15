@@ -20,7 +20,7 @@ export const authenticateUser = async (prisma, request) => {
 
 	if (authHeader) {
 		const token = authHeader.split(" ")[1];
-		// console.log("token.........", token);
+		// console.log("auth.......token.........", token);
 		// check if token is the current token:
 		const tokenPayload = await jwt.verify(token, APP_SECRET);
 		// console.log("tokenpayload.........", tokenPayload);
