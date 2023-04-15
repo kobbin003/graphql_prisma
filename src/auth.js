@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import * as dotenv from "dotenv";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+// import { parseJson } from "./utils/parseJson.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -14,11 +15,11 @@ export const APP_SECRET = process.env.APP_SECRET;
 // const { prisma } = createContext();
 
 export const authenticateUser = async (prisma, request) => {
-	const header = request.headers.get("authorization");
-	// console.log("auth.js", header);
+	const authHeader = request.headers.get("authorization");
+	// console.log("auth.js", authHeader);
 
-	if (header !== null) {
-		const token = header.split(" ")[1];
+	if (authHeader) {
+		const token = authHeader.split(" ")[1];
 		// console.log("token.........", token);
 		// check if token is the current token:
 		const tokenPayload = await jwt.verify(token, APP_SECRET);

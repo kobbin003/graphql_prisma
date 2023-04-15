@@ -165,14 +165,14 @@ const Mutation = {
 		if (!currentUser) throw new Error("user not authorised!");
 		let deletedUser;
 		try {
-			console.log(
-				"trying.....",
-				await prisma.user.findUnique({
-					where: {
-						id: currentUser.id,
-					},
-				})
-			);
+			// console.log(
+			// 	"trying.....",
+			// 	await prisma.user.findUnique({
+			// 		where: {
+			// 			id: currentUser.id,
+			// 		},
+			// 	})
+			// );
 			deletedUser = await prisma.user.delete({
 				where: {
 					id: currentUser.id,

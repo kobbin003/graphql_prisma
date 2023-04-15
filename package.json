@@ -16,7 +16,8 @@
     "build": "babel src -d dist --watch --copy-files",
     "server": "node --trace-warnings --watch src/index.js",
     "start": "dotenv -e .env.development npm run server",
-    "test": "NODE_OPTIONS=--experimental-vm-modules dotenv -e .env.test npx jest --watch"
+    "test": "NODE_OPTIONS=--experimental-vm-modules dotenv -e .env.test npx jest",
+    "testFile": "NODE_OPTIONS=--experimental-vm-modules dotenv -e .env.test npx jest ${FILE}"
   },
   "keywords": [],
   "author": "",

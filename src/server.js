@@ -50,4 +50,3 @@ const yoga = createYoga(yogaOptions);
 export const server = createServer(yoga);
 
 // console.log("server........>!!!!!!!", server);
-// NODE_OPTIONS=--experimental-vm-modules
