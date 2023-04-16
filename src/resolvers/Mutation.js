@@ -127,7 +127,7 @@ const Mutation = {
 	updateUser: async (parent, args, { context }, info) => {
 		// check i user is authenticated and authorized
 		if (!context.currentUser) throw new Error("user not authorised!");
-		console.log("Mutation....updateUser", context.currentUser);
+		// console.log("Mutation....updateUser", context.currentUser);
 
 		const userId = context.currentUser.id;
 		const { data } = args;
